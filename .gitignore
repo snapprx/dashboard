@@ -1,0 +1,28 @@
+# Next.js
+.next/
+out/
+
+# Deps
+node_modules/
+
+# Env (contient les tokens — NE JAMAIS push)
+.env
+.env.local
+.env*.local
+
+# Build artifacts
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
