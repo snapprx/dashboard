@@ -1,25 +1,29 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { SchoolCalendar, CalendarSource } from './SchoolCalendar'
-import { SettingsPanel } from './SettingsPanel'
+import { SettingsPanel, Settings, WeatherConfig } from './SettingsPanel'
 import { TodoistWidget } from './TodoistWidget'
+import { TodoistProductivity } from './TodoistProductivity'
 import { DeadlineTimeline } from './DeadlineTimeline'
 import { ProjectCard } from './ProjectCard'
 import { VaultWidget } from './VaultWidget'
+import { GitHubActivity } from './GitHubActivity'
+import { WeatherWidget } from './WeatherWidget'
+import { QuickNote } from './QuickNote'
+import { NextCourseBar } from './NextCourseBar'
 import type { Project } from '@/lib/vault'
 import type { TodoistTask } from '@/lib/todoist'
 
 const ICAL_DEFAULT = 'https://planning-paris.omneseducation.com/Telechargements/ical/Edt_DERAMAIX.ics?version=2026.2.4&icalsecurise=6A0C1F0DB68300F6C9AF02D3255A391C7A19D30FCA561B81D66B07E436AF8E71EC51AA418DCB31094757668C52A346A9&param=643d5b312e2e36325d2666683d3126663d31'
-const STORAGE_KEY = 'dashboard-settings-v2'
-
-interface Settings { calendars: CalendarSource[]; dark: boolean }
+const STORAGE_KEY = 'dashboard-settings-v3'
 
 const DEFAULT_SETTINGS: Settings = {
   calendars: [{ id: 'school', name: 'ECE — Ing1', url: ICAL_DEFAULT, color: '#6366f1' }],
   dark: false,
+  weather: { city: 'Paris', lat: '48.8566', lon: '2.3522' },
 }
 
-interface DashboardClientProps {
+interface Props {
   projects: Project[]
   allTasks: TodoistTask[]
   schoolTasks: TodoistTask[]
@@ -30,9 +34,8 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({
-  projects, allTasks, schoolTasks, projectTasks, deadlines,
-  vaultError, todoistError
-}: DashboardClientProps) {
+  projects, allTasks, schoolTasks, projectTasks, deadlines, vaultError, todoistError
+}: Props) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [vaultNoteCount, setVaultNoteCount] = useState<number | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -42,10 +45,9 @@ export function DashboardClient({
     if (saved) { try { setSettings(JSON.parse(saved)) } catch {} }
     setMounted(true)
 
-    // Fetch vault note count pour la stat card
     fetch('/api/vault-stats')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.totalNotes != null) setVaultNoteCount(data.totalNotes) })
+      .then(d => { if (d?.totalNotes != null) setVaultNoteCount(d.totalNotes) })
       .catch(() => {})
   }, [])
 
@@ -73,25 +75,19 @@ export function DashboardClient({
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${pageBg}`}>
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
 
+        {/* Header */}
         <div>
           <h1 className={`text-3xl font-black ${headText}`}>Dashboard</h1>
           <p className={`text-sm mt-1 ${subText}`}>Projets · Todoist · Agenda · Vault</p>
         </div>
 
+        {/* Erreurs */}
         {(vaultError || todoistError) && (
           <div className="space-y-2">
-            {vaultError && (
-              <div className="bg-red-900/20 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">
-                <strong>Vault projets:</strong> {vaultError}
-              </div>
-            )}
-            {todoistError && (
-              <div className="bg-orange-900/20 border border-orange-500/30 text-orange-400 text-sm px-4 py-3 rounded-lg">
-                <strong>Todoist:</strong> {todoistError}
-              </div>
-            )}
+            {vaultError && <div className="bg-red-900/20 border border-red-500/30 text-red-400 text-sm px-4 py-2 rounded-lg"><strong>Vault:</strong> {vaultError}</div>}
+            {todoistError && <div className="bg-orange-900/20 border border-orange-500/30 text-orange-400 text-sm px-4 py-2 rounded-lg"><strong>Todoist:</strong> {todoistError}</div>}
           </div>
         )}
 
@@ -103,28 +99,41 @@ export function DashboardClient({
             ['École', schoolTasks.filter(t => !t.is_completed).length],
             ['Notes Vault', vaultNoteCount ?? '…'],
           ] as [string, number | string][]).map(([label, value]) => (
-            <div key={label} className={`rounded-xl shadow-sm p-4 border ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <div key={label} className={`rounded-xl shadow-sm p-4 border ${cardBg}`}>
               <p className={`text-xs font-medium ${subText}`}>{label}</p>
               <p className={`text-3xl font-black ${headText}`}>{value}</p>
             </div>
           ))}
         </div>
 
-        {/* 1. Agenda */}
+        {/* Prochain cours */}
+        <NextCourseBar calendars={settings.calendars} dark={dark} />
+
+        {/* Agenda */}
         <section>
           <h2 className={`text-sm font-bold uppercase tracking-wider mb-3 ${subText}`}>📅 Agenda</h2>
           <SchoolCalendar calendars={settings.calendars} dark={dark} />
         </section>
 
-        {/* 2. Todoist */}
-        <section className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
-          <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>✓ Todoist</h2>
-          <TodoistWidget all={allTasks} school={schoolTasks} projects={projectTasks} dark={dark} />
-        </section>
+        {/* Contenu principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* 3. Projets + sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Colonne principale (2/3) */}
           <div className="lg:col-span-2 space-y-6">
+
+            {/* Todoist */}
+            <section className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>✓ Todoist</h2>
+              <TodoistWidget all={allTasks} school={schoolTasks} projects={projectTasks} dark={dark} />
+            </section>
+
+            {/* Productivité Todoist */}
+            <section className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>📊 Productivité</h2>
+              <TodoistProductivity tasks={allTasks} dark={dark} />
+            </section>
+
+            {/* Projets */}
             {active.length > 0 && (
               <section>
                 <h2 className={`text-sm font-bold uppercase tracking-wider mb-3 ${subText}`}>🟢 Actifs</h2>
@@ -151,15 +160,38 @@ export function DashboardClient({
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar (1/3) */}
           <div className="space-y-6">
+
+            {/* Météo */}
+            <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>🌤 Météo</h2>
+              <WeatherWidget lat={settings.weather.lat} lon={settings.weather.lon} city={settings.weather.city} dark={dark} />
+            </div>
+
+            {/* Note rapide */}
+            <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>✏️ Note rapide</h2>
+              <QuickNote dark={dark} />
+            </div>
+
+            {/* ING2 countdown */}
             <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
               <DeadlineTimeline tasks={deadlines} dark={dark} />
             </div>
+
+            {/* GitHub Activity */}
+            <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
+              <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>🐙 GitHub</h2>
+              <GitHubActivity dark={dark} />
+            </div>
+
+            {/* Vault */}
             <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
               <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>🗒 Vault Obsidian</h2>
               <VaultWidget dark={dark} />
             </div>
+
           </div>
         </div>
       </div>
