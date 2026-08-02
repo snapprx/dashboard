@@ -1,8 +1,9 @@
 'use client'
-import { VaultStats } from '@/lib/vault-stats'
+import { useState, useEffect } from 'react'
+import type { VaultStats } from '@/lib/vault-stats'
 
-function timeAgo(date: Date): string {
-  const diff = Date.now() - date.getTime()
+function timeAgo(isoStr: string): string {
+  const diff = Date.now() - new Date(isoStr).getTime()
   const m = Math.floor(diff / 60000)
   const h = Math.floor(m / 60)
   const d = Math.floor(h / 24)
@@ -12,23 +13,48 @@ function timeAgo(date: Date): string {
   return 'à l\'instant'
 }
 
-export function VaultWidget({ stats, dark, error }: {
-  stats: VaultStats | null
-  dark: boolean
-  error?: string | null
-}) {
+export function VaultWidget({ dark }: { dark: boolean }) {
+  const [stats, setStats] = useState<VaultStats | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/vault-stats')
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error ?? `HTTP ${r.status}`)
+        return data as VaultStats
+      })
+      .then(data => { setStats(data); setLoading(false) })
+      .catch(err => {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error('[VaultWidget]', msg)
+        setError(msg)
+        setLoading(false)
+      })
+  }, [])
+
   const text = dark ? 'text-gray-100' : 'text-gray-900'
   const sub = dark ? 'text-gray-400' : 'text-gray-500'
   const rowBg = dark ? 'bg-gray-900/60' : 'bg-gray-50'
-  const border = dark ? 'border-gray-700' : 'border-gray-100'
+  const divider = dark ? 'divide-gray-800' : 'divide-gray-100'
+
+  if (loading) return (
+    <div className="animate-pulse space-y-2">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className={`h-8 rounded-lg ${dark ? 'bg-gray-700' : 'bg-gray-200'}`} />
+      ))}
+    </div>
+  )
 
   if (error) return (
-    <div className="text-xs text-orange-400">⚠ {error}</div>
+    <div className="space-y-2">
+      <p className="text-xs text-orange-400 break-words">⚠ {error}</p>
+      <p className={`text-xs ${sub}`}>Vérifie que VAULT_PATH est correct dans .env.local</p>
+    </div>
   )
 
-  if (!stats) return (
-    <div className={`text-xs ${sub}`}>Chargement…</div>
-  )
+  if (!stats) return null
 
   return (
     <div className="space-y-4">
@@ -57,7 +83,7 @@ export function VaultWidget({ stats, dark, error }: {
       {/* Notes récentes */}
       <div>
         <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${sub}`}>Notes récentes</p>
-        <div className={`rounded-xl overflow-hidden divide-y ${dark ? 'divide-gray-800' : 'divide-gray-100'}`}>
+        <div className={`rounded-xl overflow-hidden divide-y ${divider}`}>
           {stats.recentNotes.map((note, i) => (
             <div key={i} className={`flex items-center justify-between px-3 py-2 ${rowBg}`}>
               <div className="min-w-0">
@@ -73,10 +99,10 @@ export function VaultWidget({ stats, dark, error }: {
         </div>
       </div>
 
-      {/* Sync info */}
+      {/* Footer */}
       <div className="flex items-center justify-between">
         <p className={`text-xs ${sub}`}>
-          {stats.totalNotes} notes · {stats.lastSync ? `Sync ${timeAgo(stats.lastSync)}` : 'Pas de sync Git détectée'}
+          {stats.totalNotes} notes · {stats.lastSync ? `Sync ${timeAgo(stats.lastSync)}` : 'Pas de sync Git'}
         </p>
         <p className={`text-xs font-medium ${sub}`}>Obsidian</p>
       </div>

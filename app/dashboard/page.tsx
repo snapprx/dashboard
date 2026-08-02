@@ -1,12 +1,10 @@
 import { parseVaultProjects } from '@/lib/vault'
-import { getVaultStats, VaultStats } from '@/lib/vault-stats'
 import { getAllTasks, getTasksByLabel, getDeadlineTasks } from '@/lib/todoist'
 import { DashboardClient } from '@/components/DashboardClient'
 
 export const revalidate = 300
 
 export default async function DashboardPage() {
-  // Vault projects
   let projects: Awaited<ReturnType<typeof parseVaultProjects>> = []
   let vaultError: string | null = null
   try {
@@ -15,16 +13,6 @@ export default async function DashboardPage() {
     vaultError = (e as Error).message
   }
 
-  // Vault stats
-  let vaultStats: VaultStats | null = null
-  let vaultStatsError: string | null = null
-  try {
-    vaultStats = await getVaultStats()
-  } catch (e) {
-    vaultStatsError = (e as Error).message
-  }
-
-  // Todoist
   let allTasks: Awaited<ReturnType<typeof getAllTasks>> = []
   let schoolTasks: typeof allTasks = []
   let deadlines: typeof allTasks = []
@@ -51,8 +39,6 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       projects={projects}
-      vaultStats={vaultStats}
-      vaultStatsError={vaultStatsError}
       allTasks={allTasks}
       schoolTasks={schoolTasks}
       projectTasks={projectTasks}

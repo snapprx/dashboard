@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { getGithubFileContent } from './github'
 
 export interface Project {
   name: string
@@ -48,16 +49,25 @@ function parseProjectBlock(block: string): Project | null {
   return project
 }
 
-export async function parseVaultProjects(): Promise<Project[]> {
+async function readProjectStateContent(): Promise<string> {
+  // Mode Vercel / GitHub
+  if (process.env.VAULT_REPO) {
+    return getGithubFileContent('02-Projets/PROJECT-STATE.md')
+  }
+
+  // Mode local (dev)
   const vaultPath = process.env.VAULT_PATH
-  if (!vaultPath) throw new Error('VAULT_PATH manquant dans .env.local')
+  if (!vaultPath) throw new Error('VAULT_PATH ou VAULT_REPO manquant dans .env.local')
 
   const stateFile = path.join(vaultPath, '02-Projets', 'PROJECT-STATE.md')
   if (!fs.existsSync(stateFile)) throw new Error(`Fichier introuvable : ${stateFile}`)
 
-  const content = fs.readFileSync(stateFile, 'utf-8')
-  const blocks = content.split(/\n(?=## )/)
+  return fs.readFileSync(stateFile, 'utf-8')
+}
 
+export async function parseVaultProjects(): Promise<Project[]> {
+  const content = await readProjectStateContent()
+  const blocks = content.split(/\n(?=## )/)
   return blocks
     .map(b => parseProjectBlock(b))
     .filter((p): p is Project => p !== null)

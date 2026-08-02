@@ -6,9 +6,8 @@ import { TodoistWidget } from './TodoistWidget'
 import { DeadlineTimeline } from './DeadlineTimeline'
 import { ProjectCard } from './ProjectCard'
 import { VaultWidget } from './VaultWidget'
-import { Project } from '@/lib/vault'
-import { VaultStats } from '@/lib/vault-stats'
-import { TodoistTask } from '@/lib/todoist'
+import type { Project } from '@/lib/vault'
+import type { TodoistTask } from '@/lib/todoist'
 
 const ICAL_DEFAULT = 'https://planning-paris.omneseducation.com/Telechargements/ical/Edt_DERAMAIX.ics?version=2026.2.4&icalsecurise=6A0C1F0DB68300F6C9AF02D3255A391C7A19D30FCA561B81D66B07E436AF8E71EC51AA418DCB31094757668C52A346A9&param=643d5b312e2e36325d2666683d3126663d31'
 const STORAGE_KEY = 'dashboard-settings-v2'
@@ -22,8 +21,6 @@ const DEFAULT_SETTINGS: Settings = {
 
 interface DashboardClientProps {
   projects: Project[]
-  vaultStats: VaultStats | null
-  vaultStatsError: string | null
   allTasks: TodoistTask[]
   schoolTasks: TodoistTask[]
   projectTasks: TodoistTask[]
@@ -33,17 +30,23 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({
-  projects, vaultStats, vaultStatsError,
-  allTasks, schoolTasks, projectTasks, deadlines,
+  projects, allTasks, schoolTasks, projectTasks, deadlines,
   vaultError, todoistError
 }: DashboardClientProps) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [vaultNoteCount, setVaultNoteCount] = useState<number | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) { try { setSettings(JSON.parse(saved)) } catch {} }
     setMounted(true)
+
+    // Fetch vault note count pour la stat card
+    fetch('/api/vault-stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.totalNotes != null) setVaultNoteCount(data.totalNotes) })
+      .catch(() => {})
   }, [])
 
   const saveSettings = (s: Settings) => {
@@ -72,21 +75,23 @@ export function DashboardClient({
     <div className={`min-h-screen transition-colors duration-300 ${pageBg}`}>
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
-        {/* Header */}
         <div>
           <h1 className={`text-3xl font-black ${headText}`}>Dashboard</h1>
           <p className={`text-sm mt-1 ${subText}`}>Projets · Todoist · Agenda · Vault</p>
         </div>
 
-        {/* Erreurs */}
-        {vaultError && (
-          <div className="bg-red-900/20 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">
-            <strong>Vault projets:</strong> {vaultError}
-          </div>
-        )}
-        {todoistError && (
-          <div className="bg-orange-900/20 border border-orange-500/30 text-orange-400 text-sm px-4 py-3 rounded-lg">
-            <strong>Todoist:</strong> {todoistError}
+        {(vaultError || todoistError) && (
+          <div className="space-y-2">
+            {vaultError && (
+              <div className="bg-red-900/20 border border-red-500/30 text-red-400 text-sm px-4 py-3 rounded-lg">
+                <strong>Vault projets:</strong> {vaultError}
+              </div>
+            )}
+            {todoistError && (
+              <div className="bg-orange-900/20 border border-orange-500/30 text-orange-400 text-sm px-4 py-3 rounded-lg">
+                <strong>Todoist:</strong> {todoistError}
+              </div>
+            )}
           </div>
         )}
 
@@ -96,7 +101,7 @@ export function DashboardClient({
             ['Projets', projects.length],
             ['Tâches', allTasks.filter(t => !t.is_completed).length],
             ['École', schoolTasks.filter(t => !t.is_completed).length],
-            ['Notes Vault', vaultStats?.totalNotes ?? '—'],
+            ['Notes Vault', vaultNoteCount ?? '…'],
           ] as [string, number | string][]).map(([label, value]) => (
             <div key={label} className={`rounded-xl shadow-sm p-4 border ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
               <p className={`text-xs font-medium ${subText}`}>{label}</p>
@@ -146,19 +151,17 @@ export function DashboardClient({
             )}
           </div>
 
-          {/* Sidebar : ING2 countdown + Vault */}
+          {/* Sidebar */}
           <div className="space-y-6">
             <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
               <DeadlineTimeline tasks={deadlines} dark={dark} />
             </div>
-
             <div className={`rounded-xl shadow-sm p-5 border ${cardBg}`}>
               <h2 className={`text-sm font-bold uppercase tracking-wider mb-4 ${subText}`}>🗒 Vault Obsidian</h2>
-              <VaultWidget stats={vaultStats} dark={dark} error={vaultStatsError} />
+              <VaultWidget dark={dark} />
             </div>
           </div>
         </div>
-
       </div>
 
       <SettingsPanel settings={settings} onSave={saveSettings} />
