@@ -1,97 +1,63 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-interface Props {
-  timeoutSeconds: number // 0 = désactivé
-}
+// ─── Sphère 3D ────────────────────────────────────────────────────────────────
 
-// ─── Chiffre avec effet de profondeur ────────────────────────────────────────
-
-function FloatDigits({ value, px, py, delay }: { value: string; px: number; py: number; delay: number }) {
-  const size = 'clamp(100px, 22vw, 300px)'
-  const base: React.CSSProperties = {
-    fontSize: size,
-    fontWeight: 900,
-    lineHeight: 1,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif',
-    letterSpacing: '-0.04em',
-    position: 'absolute',
-    inset: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'transform 0.12s ease-out',
-  }
-
+function Sphere({ size, pulse }: { size: number; pulse: boolean }) {
   return (
-    <div style={{ position: 'relative', width: 'clamp(110px, 23vw, 310px)', height: 'clamp(100px, 22vw, 300px)' }}>
-      {/* Couche profonde — ombre */}
-      <div style={{
-        ...base,
-        color: '#0f172a',
-        transform: `translate(${(px + delay) * 0.4}px, ${py * 0.4}px)`,
-        filter: 'blur(4px)',
-        opacity: 0.8,
-      }}>{value}</div>
-
-      {/* Couche milieu — bleu foncé */}
-      <div style={{
-        ...base,
-        background: 'linear-gradient(150deg, #1e3a8a 0%, #1d4ed8 60%, #2563eb 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        transform: `translate(${(px + delay) * 0.7}px, ${py * 0.7}px)`,
-        opacity: 0.65,
-      }}>{value}</div>
-
-      {/* Couche avant — bleu vif */}
-      <div style={{
-        ...base,
-        background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 35%, #60a5fa 65%, #93c5fd 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        transform: `translate(${(px + delay) * 1.0}px, ${py * 1.0}px)`,
-        zIndex: 2,
-      }}>{value}</div>
-    </div>
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      flexShrink: 0,
+      background: 'radial-gradient(circle at 32% 28%, #f8fafc 0%, #cbd5e1 25%, #94a3b8 55%, #475569 85%, #1e293b 100%)',
+      boxShadow: `
+        0 ${size * 0.15}px ${size * 0.4}px rgba(0,0,0,0.8),
+        inset 0 ${size * 0.06}px ${size * 0.12}px rgba(255,255,255,0.25)
+      `,
+      opacity: pulse ? 1 : 0.35,
+      transition: 'opacity 0.3s ease',
+    }} />
   )
 }
 
-// ─── Séparateur sphérique ─────────────────────────────────────────────────────
+// ─── Chiffre flottant ─────────────────────────────────────────────────────────
 
-function FloatDots({ px, py, tick }: { px: number; py: number; tick: number }) {
-  const dot = (top: boolean): React.CSSProperties => ({
-    width: 'clamp(14px, 2vw, 28px)',
-    height: 'clamp(14px, 2vw, 28px)',
-    borderRadius: '50%',
-    background: 'radial-gradient(circle at 35% 30%, #f1f5f9, #94a3b8 60%, #475569)',
-    boxShadow: '0 4px 16px rgba(148,163,184,0.35), inset 0 1px 2px rgba(255,255,255,0.3)',
-    opacity: (top ? tick % 2 === 0 : tick % 2 !== 0) ? 1 : 0.3,
-    transition: 'opacity 0.25s',
-  })
+function FloatNumber({ value, px, py, zIndex, bright }: {
+  value: string; px: number; py: number; zIndex: number; bright: boolean
+}) {
+  const size = 'clamp(130px, 27vw, 400px)'
 
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 'clamp(8px, 1.5vw, 20px)',
-      margin: '0 clamp(6px, 1vw, 14px)',
-      transform: `translate(${px * 1.6}px, ${py * 1.6}px)`,
+      fontSize: size,
+      fontWeight: 900,
+      lineHeight: 0.9,
+      letterSpacing: '-0.04em',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif',
+      background: bright
+        ? 'linear-gradient(170deg, #93c5fd 0%, #60a5fa 20%, #3b82f6 50%, #2563eb 75%, #1d4ed8 100%)'
+        : 'linear-gradient(170deg, #60a5fa 0%, #3b82f6 30%, #2563eb 60%, #1e40af 85%, #1e3a8a 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      filter: bright
+        ? 'drop-shadow(0 0 30px rgba(59,130,246,0.7)) drop-shadow(0 4px 20px rgba(29,78,216,0.5))'
+        : 'drop-shadow(0 0 20px rgba(29,78,216,0.5)) drop-shadow(0 6px 30px rgba(0,0,0,0.9))',
+      transform: `translate(${px}px, ${py}px)`,
       transition: 'transform 0.12s ease-out',
-      zIndex: 10,
       position: 'relative',
+      zIndex,
+      userSelect: 'none',
     }}>
-      <div style={dot(true)} />
-      <div style={dot(false)} />
+      {value}
     </div>
   )
 }
 
-// ─── Screensaver principal ────────────────────────────────────────────────────
+// ─── Screensaver ──────────────────────────────────────────────────────────────
 
-export function Screensaver({ timeoutSeconds }: Props) {
+export function Screensaver({ timeoutSeconds }: { timeoutSeconds: number }) {
   const [active, setActive] = useState(false)
   const [visible, setVisible] = useState(false)
   const [now, setNow] = useState(new Date())
@@ -99,32 +65,28 @@ export function Screensaver({ timeoutSeconds }: Props) {
   const activeRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Horloge
   useEffect(() => {
     const iv = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(iv)
   }, [])
 
-  // Inactivité
   const dismiss = useCallback(() => {
     if (!activeRef.current) return
     setVisible(false)
-    setTimeout(() => { setActive(false); activeRef.current = false }, 400)
+    setTimeout(() => { setActive(false); activeRef.current = false }, 450)
   }, [])
 
   const schedule = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
     if (timeoutSeconds <= 0) return
     timerRef.current = setTimeout(() => {
-      setActive(true)
-      activeRef.current = true
+      setActive(true); activeRef.current = true
       setTimeout(() => setVisible(true), 30)
     }, timeoutSeconds * 1000)
   }, [timeoutSeconds])
 
   const reset = useCallback(() => {
-    dismiss()
-    schedule()
+    dismiss(); schedule()
   }, [dismiss, schedule])
 
   useEffect(() => {
@@ -137,7 +99,6 @@ export function Screensaver({ timeoutSeconds }: Props) {
     }
   }, [reset, schedule])
 
-  // Parallaxe souris
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (!activeRef.current) return
@@ -152,63 +113,87 @@ export function Screensaver({ timeoutSeconds }: Props) {
   const h = now.getHours().toString().padStart(2, '0')
   const m = now.getMinutes().toString().padStart(2, '0')
   const s = now.getSeconds()
-  const px = (mouse.x - 0.5) * 28
-  const py = (mouse.y - 0.5) * 18
+
+  // Parallaxe douce : heures et minutes bougent en sens opposé
+  const px = (mouse.x - 0.5) * 22
+  const py = (mouse.y - 0.5) * 14
+
+  // Taille des sphères en vw (rem pour calcul)
+  const sphereSize = Math.min(Math.max(window.innerWidth * 0.038, 28), 58)
+  const gap = sphereSize * 0.5
 
   const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center select-none cursor-none overflow-hidden"
       style={{
+        position: 'fixed', inset: 0, zIndex: 200,
         background: '#000',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
         opacity: visible ? 1 : 0,
         transition: 'opacity 0.45s ease',
+        cursor: 'none',
+        userSelect: 'none',
+        overflow: 'hidden',
       }}
       onClick={dismiss}
     >
-      {/* Halo d'ambiance derrière */}
+      {/* Halo ambiant bleu */}
       <div style={{
         position: 'absolute',
-        width: '60vw',
-        height: '40vh',
-        background: 'radial-gradient(ellipse, rgba(37,99,235,0.18) 0%, transparent 70%)',
-        transform: `translate(${px * 0.4}px, ${py * 0.4}px)`,
-        transition: 'transform 0.15s ease-out',
+        width: '80vw', height: '50vh',
+        background: 'radial-gradient(ellipse, rgba(37,99,235,0.12) 0%, transparent 70%)',
         pointerEvents: 'none',
+        transform: `translate(${px * 0.3}px, ${py * 0.3}px)`,
+        transition: 'transform 0.2s ease-out',
       }} />
 
-      {/* Heure */}
+      {/* Horloge */}
       <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-        <FloatDigits value={h} px={px} py={py} delay={-6} />
-        <FloatDots px={px} py={py} tick={s} />
-        <FloatDigits value={m} px={px} py={py} delay={6} />
+
+        {/* Heures — derrière les sphères (z:1) */}
+        <FloatNumber value={h} px={-px * 0.6} py={-py * 0.6} zIndex={1} bright={false} />
+
+        {/* Colonne sphères — z:2, se superposent aux deux chiffres */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap, flexShrink: 0,
+          marginLeft: -sphereSize * 0.55,
+          marginRight: -sphereSize * 0.55,
+          zIndex: 2, position: 'relative',
+          transform: `translate(${px * 1.4}px, ${py * 1.4}px)`,
+          transition: 'transform 0.1s ease-out',
+        }}>
+          <Sphere size={sphereSize} pulse={s % 2 === 0} />
+          <Sphere size={sphereSize} pulse={s % 2 !== 0} />
+        </div>
+
+        {/* Minutes — devant les sphères (z:3) */}
+        <FloatNumber value={m} px={px * 0.6} py={py * 0.6} zIndex={3} bright={true} />
       </div>
 
       {/* Date */}
       <div style={{
-        marginTop: 'clamp(16px, 3vh, 40px)',
-        color: '#475569',
-        fontSize: 'clamp(13px, 1.4vw, 20px)',
-        letterSpacing: '0.2em',
+        marginTop: 'clamp(24px, 4vh, 56px)',
+        color: '#334155',
+        fontSize: 'clamp(13px, 1.5vw, 22px)',
+        letterSpacing: '0.22em',
         textTransform: 'uppercase',
         fontWeight: 300,
-        transform: `translate(${px * 0.2}px, ${py * 0.2}px)`,
+        transform: `translate(${px * 0.15}px, ${py * 0.15}px)`,
         transition: 'transform 0.18s ease-out',
       }}>
         {dateStr}
       </div>
 
-      {/* Hint de sortie */}
+      {/* Hint */}
       <div style={{
-        position: 'absolute',
-        bottom: 'clamp(16px, 3vh, 32px)',
-        color: '#1e293b',
-        fontSize: '12px',
-        letterSpacing: '0.15em',
-        fontWeight: 400,
+        position: 'absolute', bottom: 'clamp(14px, 2.5vh, 28px)',
+        color: '#1e293b', fontSize: '11px', letterSpacing: '0.18em',
+        fontWeight: 400, textTransform: 'uppercase',
       }}>
-        TOUCHER POUR QUITTER
+        Toucher pour quitter
       </div>
     </div>
   )
