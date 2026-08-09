@@ -11,12 +11,21 @@ const PRESET_CITIES = [
   { city: 'Lagny-sur-Marne', lat: '48.8736', lon: '2.7197' },
 ]
 
+const SCREENSAVER_OPTIONS = [
+  { label: 'Jamais', value: 0 },
+  { label: '30 sec', value: 30 },
+  { label: '1 min', value: 60 },
+  { label: '5 min', value: 300 },
+  { label: '10 min', value: 600 },
+]
+
 export interface WeatherConfig { city: string; lat: string; lon: string }
 
 export interface Settings {
   calendars: CalendarSource[]
   dark: boolean
   weather: WeatherConfig
+  screensaverTimeout: number
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9) }
@@ -36,7 +45,7 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings, onSave
     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
   const rowBg = d ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
   const btnSec = d ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-  const btnTheme = (active: boolean) => active
+  const btn = (active: boolean) => active
     ? 'bg-blue-600 text-white border-blue-600'
     : d ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
 
@@ -75,8 +84,23 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings, onSave
               <div className="flex gap-2">
                 {[{ label: '☀ Clair', v: false }, { label: '🌙 Sombre', v: true }].map(({ label, v }) => (
                   <button key={label} onClick={() => setDraft(s => ({ ...s, dark: v }))}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition ${btnTheme(draft.dark === v)}`}>
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition ${btn(draft.dark === v)}`}>
                     {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Screensaver */}
+            <div>
+              <p className="text-sm font-semibold mb-2">🕐 Écran d'horloge</p>
+              <p className={`text-xs mb-2 ${sub}`}>S'active après une période d'inactivité</p>
+              <div className="flex flex-wrap gap-2">
+                {SCREENSAVER_OPTIONS.map(opt => (
+                  <button key={opt.value}
+                    onClick={() => setDraft(s => ({ ...s, screensaverTimeout: opt.value }))}
+                    className={`px-3 py-1 rounded-lg text-sm border transition ${btn(draft.screensaverTimeout === opt.value)}`}>
+                    {opt.label}
                   </button>
                 ))}
               </div>
@@ -89,12 +113,12 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings, onSave
                 {PRESET_CITIES.map(c => (
                   <button key={c.city}
                     onClick={() => { setDraft(s => ({ ...s, weather: c })); setCustomCity(false) }}
-                    className={`px-3 py-1 rounded-lg text-sm border transition ${draft.weather.city === c.city && !customCity ? btnTheme(true) : btnSec}`}>
+                    className={`px-3 py-1 rounded-lg text-sm border transition ${draft.weather.city === c.city && !customCity ? btn(true) : btnSec}`}>
                     {c.city}
                   </button>
                 ))}
                 <button onClick={() => setCustomCity(v => !v)}
-                  className={`px-3 py-1 rounded-lg text-sm border transition ${customCity ? btnTheme(true) : btnSec}`}>
+                  className={`px-3 py-1 rounded-lg text-sm border transition ${customCity ? btn(true) : btnSec}`}>
                   Autre
                 </button>
               </div>
@@ -119,7 +143,6 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings, onSave
                 <p className="text-sm font-semibold">Agendas</p>
                 <button onClick={() => setAdding(true)} className="text-xs font-bold text-blue-500 hover:text-blue-600 transition">+ Ajouter</button>
               </div>
-
               <div className="space-y-2 mb-3">
                 {draft.calendars.map(cal => (
                   <div key={cal.id} className={`flex items-center gap-3 p-3 rounded-lg border ${rowBg}`}>
@@ -131,20 +154,15 @@ export function SettingsPanel({ settings, onSave }: { settings: Settings, onSave
                     <button onClick={() => removeCal(cal.id)} className="text-gray-400 hover:text-red-400 transition text-lg leading-none">×</button>
                   </div>
                 ))}
-                {draft.calendars.length === 0 && (
-                  <p className={`text-sm italic text-center py-4 ${sub}`}>Aucun agenda</p>
-                )}
+                {draft.calendars.length === 0 && <p className={`text-sm italic text-center py-4 ${sub}`}>Aucun agenda</p>}
               </div>
-
               {adding && (
                 <div className={`rounded-xl border p-4 space-y-3 ${rowBg}`}>
                   <p className="text-sm font-semibold">Nouvel agenda</p>
-                  <input value={newCal.name}
-                    onChange={e => setNewCal(n => ({ ...n, name: e.target.value }))}
+                  <input value={newCal.name} onChange={e => setNewCal(n => ({ ...n, name: e.target.value }))}
                     placeholder="Nom (ex: Perso, ECE…)"
                     className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${inp}`} />
-                  <textarea value={newCal.url}
-                    onChange={e => setNewCal(n => ({ ...n, url: e.target.value }))}
+                  <textarea value={newCal.url} onChange={e => setNewCal(n => ({ ...n, url: e.target.value }))}
                     rows={3} placeholder="webcal://, https://, ou .ics"
                     className={`w-full rounded-lg border px-3 py-2 text-xs font-mono resize-none outline-none transition ${inp}`} />
                   <div className={`text-xs space-y-0.5 ${sub}`}>
