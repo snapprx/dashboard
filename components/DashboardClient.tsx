@@ -76,7 +76,11 @@ export function DashboardClient({
 
   return (
     <>
-      <Screensaver timeoutSeconds={settings.screensaverTimeout} />
+      <Screensaver
+        timeoutSeconds={settings.screensaverTimeout}
+        weatherLat={settings.weather.lat}
+        weatherLon={settings.weather.lon}
+      />
 
       <div className={`min-h-screen transition-colors duration-300 ${pageBg}`}>
         <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
